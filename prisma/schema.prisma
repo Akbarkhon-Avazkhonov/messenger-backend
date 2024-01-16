@@ -10,7 +10,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Token {
-  id       Int     @id @default(autoincrement())
-  token    String @unique
+model User {
+  id        Int      @id @default(autoincrement())
+  user_id   Int      @unique
+  name      String
+  username  String   @unique
+  password  String
+  role_id   Int
+  is_admin  Boolean  @default(false)
+  session   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
 }
