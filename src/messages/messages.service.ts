@@ -15,13 +15,20 @@ export class MessagesService {
       const dialogs = await client.getDialogs({ limit: 10 });
       await client.disconnect();
       await client.destroy();
+      // const result = dialogs.map((dialog) => ({
+      //   id: dialog.id,
+      //   title: dialog.title,
+      //   unreadCount: dialog.unreadCount,
+      //   message: dialog.message,
+      //   date: dialog.date,
+      //   // Добавьте здесь другие свойства, которые вам нужны
+      // }));
       const result = dialogs.map((dialog) => ({
-        id: dialog.id,
+        userId: dialog.id,
         title: dialog.title,
         unreadCount: dialog.unreadCount,
-        message: dialog.message,
-        date: dialog.date,
-        // Добавьте здесь другие свойства, которые вам нужны
+        message: dialog.message.message,
+        date: dialog.date
       }));
       return result;
     } else {
