@@ -1,57 +1,77 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from 'src/prisma.service';
+import { telegramClient } from 'src/telegramClient';
 
-import { TelegramClient } from 'telegram';
-import { PromisedNetSockets } from 'telegram/extensions';
-import { StringSession } from 'telegram/sessions';
+import { Api } from 'telegram';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
-  stringSession = new StringSession('');
-  // 2FA password should be turned off
-  async signInWithPassword(phoneNumber: string, phoneCode?: string) {
-    const client = new TelegramClient(
-      this.stringSession,
-      +process.env.API_ID,
-      process.env.API_HASH,
-      {
-        deviceModel: process.env.DEVICE_MODEL,
-        systemVersion: process.env.SYSTEM_VERSION,
-        appVersion: process.env.APP_VERSION,
-        networkSocket: PromisedNetSockets,
-      },
-    );
+  constructor(private prisma: PrismaService) {}
+
+  async sendCode(phoneNumber: string) {
+    const client = telegramClient();
     await client.connect();
     try {
-      if (!(await client.checkAuthorization())) {
-        await client.signInUser(
-          { apiId: +process.env.API_ID, apiHash: process.env.API_HASH },
-          {
-            phoneNumber: phoneNumber,
-            phoneCode: async () => {
-              // wait for the user to enter the code
-              while (!phoneCode) {
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-                throw new Error('EMPTY_PHONE_CODE');
-              }
-              return phoneCode;
-            },
-            onError: async function () {
-              return true;
-            },
-          },
-        );
+      const { phoneCodeHash } = await client.sendCode(
+        {
+          apiId: +process.env.API_ID,
+          apiHash: process.env.API_HASH,
+        },
+        phoneNumber,
+      );
+      const session = client.session.save();
+      console.log(phoneCodeHash);
+      await client.disconnect();
+      return { phoneCodeHash: phoneCodeHash, session: session };
+    } catch (e) {
+      throw new HttpException('PHONE_NUMBER_INVALID', HttpStatus.BAD_REQUEST);
+    }
+  }
+  async signInWithCode(
+    phoneNumber: string,
+    phoneCodeHash: string,
+    phoneCode: string,
+    session: string,
+  ) {
+    const client = telegramClient(session);
+    await client.connect();
+    try {
+      await client.invoke(
+        new Api.auth.SignIn({
+          phoneNumber: phoneNumber,
+          phoneCodeHash: phoneCodeHash,
+          phoneCode: phoneCode,
+        }),
+      );
+      if (client.isUserAuthorized()) {
         const session = client.session.save();
         await client.disconnect();
-        await client.destroy();
         return { session: session };
+      } else {
+        throw new HttpException('PHONE_CODE_INVALID', HttpStatus.BAD_REQUEST);
       }
     } catch (e) {
-      await client.disconnect();
-      await client.destroy();
-      console.log(e);
-      throw new HttpException('EMPTY_PHONE_CODE', HttpStatus.ACCEPTED);
+      throw new HttpException(e, HttpStatus.BAD_GATEWAY);
     }
+  }
+  async checkUsername(headers: any, username: string) {
+    const client = telegramClient(headers.session);
+    await client.connect();
+    try {
+      const result = await client.invoke(
+        new Api.account.CheckUsername({ username }),
+      );
+      return result;
+    } catch {
+      return false;
+    }
+  }
+  async signInWithName(username: string, password: string) {
+    return this.prisma.user.findUnique({
+      where: {
+        username: username,
+        password: password,
+      },
+    });
   }
 }

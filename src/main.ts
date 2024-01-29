@@ -8,6 +8,14 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Messanger API')
     .setVersion('0.0.1')
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'session',
+        in: 'header',
+      },
+      'session',
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);

@@ -1,15 +1,18 @@
-import { Injectable } from '@nestjs/common';
-import { TelegramClient } from 'telegram';
+import { Injectable, StreamableFile } from '@nestjs/common';
+import { PrismaService } from 'src/prisma.service';
+import { Api, TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions';
-const apiId = 25660944;
-const apiHash = '11cea33e2fe457036679c192bc4f2014';
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import fs from 'fs';
 @Injectable()
 export class UserService {
+  constructor(private prisma: PrismaService) {}
   async getMe(headers: any) {
     const client = new TelegramClient(
-      new StringSession(headers.usersession),
-      apiId,
-      apiHash,
+      new StringSession(headers.session),
+      +process.env.API_ID,
+      process.env.API_HASH,
       {},
     );
     // Проверка авторизации
@@ -25,28 +28,49 @@ export class UserService {
       return false;
     }
   }
-
-  async getDialogs(headers: any) {
+  async updateProfile(headers: any, firstName: string) {
     const client = new TelegramClient(
-      new StringSession(headers.usersession),
-      apiId,
-      apiHash,
+      new StringSession(headers.session),
+      +process.env.API_ID,
+      process.env.API_HASH,
       {},
     );
     // Проверка авторизации
     await client.connect();
     if (client.isUserAuthorized()) {
-      const dialogs = await client.getDialogs({ limit: 10 });
+      const me = await client.invoke(
+        new Api.account.UpdateProfile({
+          firstName: firstName,
+        }),
+      );
       await client.disconnect();
       await client.destroy();
-      const result = dialogs.map((dialog) => ({
-        id: dialog.id,
-        title: dialog.title,
-        unreadCount: dialog.unreadCount,
-        message: dialog.message,
-        date: dialog.date,
-        // Добавьте здесь другие свойства, которые вам нужны
-      }));
+
+      return me;
+    } else {
+      await client.disconnect();
+      await client.destroy();
+      return false;
+    }
+  }
+  async getUserPhoto(headers: any, id: number) {
+    const client = new TelegramClient(
+      new StringSession(headers.session),
+      +process.env.API_ID,
+      process.env.API_HASH,
+      {},
+    );
+    // Проверка авторизации
+    await client.connect();
+    if (client.isUserAuthorized()) {
+      const user = await client.downloadProfilePhoto(id);
+      // image is a buffer containing the profile photo
+      // save image from user
+      // await fs.writeFile('picture.jpg', user);
+      const image = Buffer.from(user);
+      const result = new StreamableFile(image, 'image.jpg');
+      await client.disconnect();
+      await client.destroy();
       return result;
     } else {
       await client.disconnect();
@@ -54,38 +78,33 @@ export class UserService {
       return false;
     }
   }
-
-  async getMessages(headers: any, id: number) {
+  async updateProfilePhoto(headers: any) {
     const client = new TelegramClient(
-      new StringSession(headers.usersession),
-      apiId,
-      apiHash,
-      {
-        connectionRetries: 5,
-        deviceModel: 'Phoenix',
-        systemVersion: '2.0.1',
-      },
+      new StringSession(headers.session),
+      +process.env.API_ID,
+      process.env.API_HASH,
+      {},
     );
     // Проверка авторизации
     await client.connect();
     if (client.isUserAuthorized()) {
-      await client.getPeerId('@akbarkhonavazkhonov');
-      const messages = await client.getMessages(id.toString());
       await client.disconnect();
       await client.destroy();
-      console.log(messages);
-      const result = messages.map((message) => ({
-        id: message.id,
-        message: message.message,
-        date: message.date,
-        isMe: message.out,
-        // Добавьте здесь другие свойства, которые вам нужны
-      }));
-      return result;
+      return false;
     } else {
       await client.disconnect();
       await client.destroy();
       return false;
+    }
+  }
+  // make here check for role = 1
+  async getAllOperators(headers: any) {
+    if (headers) {
+      return this.prisma.user.findMany({
+        where: {
+          role_id: 2,
+        },
+      });
     }
   }
 }

@@ -1,12 +1,13 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Headers, HttpCode } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
-  ApiAcceptedResponse,
+  ApiBadRequestResponse,
   ApiBody,
   ApiCreatedResponse,
+  ApiOkResponse,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
-import { PasswordDto } from './dto/Password.dto';
 
 @ApiTags('Authentification')
 @Controller('auth')
@@ -14,43 +15,151 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @ApiBody({
-    description:
-      'First time send  WITHOUT PHONE CODE !. After that send WITH PHONE CODE !',
+    description: 'Send phone number',
     schema: {
       type: 'object',
       properties: {
         phoneNumber: {
           type: 'string',
-          example: '+998.........',
+          example: '+9996624545',
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({
+    description:
+      'WILL BE RETURN PHONE_CODE_HASH AND SESSION ! AND SEND CODE TO PHONE VIA TELEGRAM !',
+    schema: {
+      type: 'object',
+      properties: {
+        phoneCodeHash: {
+          type: 'string',
+          example: '8c592dd63ddf152970',
+        },
+        session: {
+          type: 'string',
+          example: '.....',
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'PHONE_NUMBER_INVALID',
+  })
+  @Post('sendCode')
+  async sendCode(@Body() phoneNumber: { phoneNumber: string }) {
+    return await this.authService.sendCode(phoneNumber.phoneNumber);
+  }
+
+  @ApiCreatedResponse({
+    description: 'WILL BE RETURN AUTHERIZED USER SESSION ! SAVE IT IN COOKIE !',
+    schema: {
+      type: 'object',
+      properties: {
+        phoneCodeHash: {
+          type: 'string',
+          example: '8c592dd63ddf152970',
+        },
+        session: {
+          type: 'string',
+          example: '.....',
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'WILL THROW ERROR WITH MESSAGE !',
+  })
+  @ApiBody({
+    description:
+      'Sign in with code after send code. This time send session in body (because user not authorized) ',
+    schema: {
+      type: 'object',
+      properties: {
+        phoneNumber: {
+          type: 'string',
+          example: '+9996624545',
         },
         phoneCode: {
+          type: 'string',
+          example: '22222',
+        },
+        phoneCodeHash: {
+          type: 'string',
+          example: '8c592dd63ddf152970',
+        },
+        session: {
           type: 'string',
           example: '',
         },
       },
     },
   })
-  @ApiCreatedResponse({
-    description: 'WILL BE RETURN SESSION STRING ! ',
+  @Post('signInWithCode')
+  async signInWithCode(
+    @Body()
+    body: {
+      phoneNumber: string;
+      phoneCodeHash: string;
+      phoneCode: string;
+      session: string;
+    },
+  ) {
+    return await this.authService.signInWithCode(
+      body.phoneNumber,
+      body.phoneCodeHash,
+      body.phoneCode,
+      body.session,
+    );
+  }
+
+  @ApiBody({
+    description: 'Send username and password',
     schema: {
       type: 'object',
       properties: {
-        session: {
+        username: {
           type: 'string',
-          example:
-            '1AgAOMTQ5LjE1NC4xNjcuNTABu2XRswl8BWMkDy8ohXz06pH6NBwUDMLUO6OzysJ0MAEVpVyGntgujuDfNvtLr4ccnDSNg8YQZUhMcS7HJUOS9/8va8CA/ZikNvItOLIbvObuP35qiSmwaPOBCRC1126sBAvc5fsFNMF6pvmm0d1SQtH0Db2ncq6W8lirQu2alswNSESfvszoH1hRvBo2301Bjrqv9+2nwmG9OylqLz+calVEC1WPBenp0xXnLNQVnHi/rlGNMrLyoUvnJvq/3KiiPI9bJxktA3zhUKBq2A5yMudy/yaM3ZMDpi2LVuxD15wRZD9XMRe2skIbG8vfKXimvjE+dPCqOJhjQ+HHQXN0aws=',
+          example: 'John',
+        },
+        password: {
+          type: 'string',
+          example: '123456',
         },
       },
     },
   })
-  @ApiAcceptedResponse({
-    description: 'EMPTY_PHONE_CODE',
-  })
-  @Post('signInWithPassword')
-  async loginWithPassword(@Body() password: PasswordDto) {
-    return await this.authService.signInWithPassword(
-      password.phoneNumber,
-      password.phoneCode,
+  @Post('signInWithName')
+  async loginWithName(
+    @Body() password: { username: string; password: string },
+  ) {
+    return await this.authService.signInWithName(
+      password.username,
+      password.password,
     );
+  }
+  @ApiSecurity('session')
+  @ApiBody({
+    description: 'Send username',
+    schema: {
+      type: 'object',
+      properties: {
+        username: {
+          type: 'string',
+          example: 'John',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: 'true or false',
+  })
+  @HttpCode(200)
+  @Post('checkUsername')
+  async checkUsername(
+    @Headers() headers: any,
+    @Body() username: { username: string },
+  ) {
+    return await this.authService.checkUsername(headers, username.username);
   }
 }
