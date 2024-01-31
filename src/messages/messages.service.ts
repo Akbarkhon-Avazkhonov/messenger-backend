@@ -4,17 +4,35 @@ import { Api } from 'telegram';
 import { CustomFile } from 'telegram/client/uploads';
 import * as fs from 'fs';
 import { telegramClient } from 'src/telegramClient';
+import { HttpService } from '@nestjs/axios';
 @Injectable()
 export class MessagesService {
-  constructor(private prisma: PrismaService) {}
-  async getDialogs(headers: any) {
+  constructor(
+    private prisma: PrismaService,
+    private readonly httpService: HttpService,
+  ) {}
+  async getDialogs(
+    headers: any,
+    limit: number = 10,
+    webhook: string = process.env.TEST_WEBHOOK,
+  ) {
     const client = telegramClient(headers.session);
     // Проверка авторизации
     await client.connect();
     if (client.isUserAuthorized()) {
-      const dialogs = await client.getDialogs({ limit: 10 });
-      await client.disconnect();
-      await client.destroy();
+      const dialogs = await client.getDialogs({ limit: limit });
+      client.addEventHandler((update: Api.UpdateNewMessage) => {
+        console.log('Received new Update');
+        this.httpService.post(webhook, update).subscribe({
+          complete: () => {
+            console.log('completed');
+          },
+          error: (err) => {
+            console.log('Error: ' + err);
+          },
+        });
+      });
+
       // const result = dialogs.map((dialog) => ({
       //   id: dialog.id,
       //   title: dialog.title,
@@ -28,8 +46,9 @@ export class MessagesService {
         title: dialog.title,
         unreadCount: dialog.unreadCount,
         message: dialog.message.message,
-        date: dialog.date
+        date: dialog.date,
       }));
+
       return result;
     } else {
       await client.disconnect();

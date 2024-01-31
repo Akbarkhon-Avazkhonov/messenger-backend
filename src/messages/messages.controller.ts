@@ -37,9 +37,31 @@ export class MessagesController {
   getMessages(@Headers() headers: any, @Body() body: { id: number }) {
     return this.messagesService.getMessages(headers, body.id);
   }
-  @Get('getDialogs')
-  getDialogs(@Headers() headers: any) {
-    return this.messagesService.getDialogs(headers);
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        limit: {
+          type: 'number',
+          example: 10,
+        },
+        webhook: {
+          type: 'string',
+          example: process.env.TEST_WEBHOOK,
+        },
+      },
+    },
+  })
+  @Post('getDialogs')
+  getDialogs(
+    @Headers() headers: any,
+    @Body() body: { limit: number; webhook: string },
+  ) {
+    return this.messagesService.getDialogs(
+      headers,
+      body.limit,
+      headers.webhook,
+    );
   }
   @ApiBody({
     schema: {

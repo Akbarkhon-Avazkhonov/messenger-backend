@@ -1,4 +1,4 @@
-import { TelegramClient } from 'telegram';
+import { Api, TelegramClient } from 'telegram';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { LogLevel } from 'telegram/extensions/Logger';
 import { StringSession } from 'telegram/sessions';
@@ -20,6 +20,8 @@ export function telegramClient(
       testServers: TEST_SERVERS,
     },
   );
+
+  client.connect() 
   if (TEST_SERVERS) {
     client.session.setDC(
       +process.env.TEST_DC_ID,
