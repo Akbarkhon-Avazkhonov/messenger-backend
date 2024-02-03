@@ -98,7 +98,7 @@ export class UserService {
     }
   }
   // make here check for role = 1
-  async getAllOperators(headers: any) {
+  async getAllOperators(headers: any ) {
     if (headers) {
       return this.prisma.user.findMany({
         where: {

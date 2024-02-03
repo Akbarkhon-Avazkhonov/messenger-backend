@@ -67,11 +67,16 @@ export class AuthService {
     }
   }
   async signInWithName(username: string, password: string) {
-    return this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: {
         username: username,
         password: password,
       },
     });
+    if (user) {
+      return user;
+    } else {
+      throw new HttpException('USER_NOT_FOUND', HttpStatus.NOT_FOUND);
+    }
   }
 }
