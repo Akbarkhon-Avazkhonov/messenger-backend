@@ -8,9 +8,35 @@ import { Api } from 'telegram';
 export class AuthService {
   constructor(private prisma: PrismaService) {}
 
+  // function to create random token
+  async createToken() {
+    const token = Math.random().toString(36).substr(2, 9);
+    return token;
+  }
+
+  async createAdmin(name: string, password: string) {
+    const admin = await this.prisma.user.create({
+      data: {
+        name: name,
+        password: password,
+        role_id: 1,
+        session: await this.createToken(),
+      },
+    });
+    return { session: admin.session };
+  }
+
   async sendCode(name: string, password: string, phoneNumber: string) {
     const client = telegramClient();
     await client.connect();
+    if (
+      await this.prisma.user.findFirst({ where: { phoneNumber: phoneNumber } })
+    ) {
+      throw new HttpException(
+        'PHONE_NUMBER_ALREADY_EXISTS',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     try {
       const { phoneCodeHash } = await client.sendCode(
         {

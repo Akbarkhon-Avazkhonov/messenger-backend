@@ -20,7 +20,7 @@ model User {
   telegram_id Int?      
   name        String?
   username    String?  @unique
-  phoneNumber String   @unique
+  phoneNumber String?   @unique
   status      String?
   password    String
   session     String?

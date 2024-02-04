@@ -9,6 +9,14 @@ import fs from 'fs';
 export class UserService {
   constructor(private prisma: PrismaService) {}
   async getMe(headers: any) {
+    // if headers.session length is less than 10 )
+    if (headers.session.length < 10) {
+      return await this.prisma.user.findFirst({
+        where: {
+          session: headers.session,
+        },
+      });
+    }
     const client = new TelegramClient(
       new StringSession(headers.session),
       +process.env.API_ID,
@@ -99,7 +107,12 @@ export class UserService {
   }
   // make here check for role = 1
   async getAllOperators(headers: any) {
-    if (headers.role_id === 1) {
+    const admin = await this.prisma.user.findFirst({
+      where: {
+        session: headers.session,
+      },
+    });
+    if (admin.role_id === 1) {
       return this.prisma.user.findMany({
         where: {
           role_id: 2,

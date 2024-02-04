@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Headers, HttpCode } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Headers,
+  HttpCode,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ApiBadRequestResponse,
@@ -15,7 +23,35 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @ApiBody({
-    description: 'Send phone number',
+    description: 'Create admin',
+    schema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          example: 'John',
+        },
+        password: {
+          type: 'string',
+          example: '123456',
+        },
+        secret: {
+          type: 'string',
+          example: 'secret',
+        },
+      },
+    },
+  })
+  @Post('createAdmin')
+  async createAdmin(
+    @Body() data: { name: string; password: string; secret: string },
+  ) {
+    if (data.secret !== process.env.SECRET)
+      throw new HttpException('FORBIDDEN', HttpStatus.FORBIDDEN);
+    return await this.authService.createAdmin(data.name, data.password);
+  }
+  @ApiBody({
+    description: 'Send phone number to create operator',
     schema: {
       type: 'object',
       properties: {
