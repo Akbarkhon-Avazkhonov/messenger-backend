@@ -23,7 +23,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @ApiBody({
-    description: 'Create admin',
+    description: 'Create admin use secret code ("secret")',
     schema: {
       type: 'object',
       properties: {
