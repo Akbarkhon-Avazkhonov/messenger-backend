@@ -8,7 +8,7 @@ import { Api } from 'telegram';
 export class AuthService {
   constructor(private prisma: PrismaService) {}
 
-  async sendCode(phoneNumber: string) {
+  async sendCode(name: string, password: string, phoneNumber: string) {
     const client = telegramClient();
     await client.connect();
     try {
@@ -20,11 +20,17 @@ export class AuthService {
         phoneNumber,
       );
       const session = client.session.save();
-      console.log(phoneCodeHash);
+      await this.prisma.user.create({
+        data: {
+          name: name,
+          password: password,
+          phoneNumber: phoneNumber,
+        },
+      });
       await client.disconnect();
       return { phoneCodeHash: phoneCodeHash, session: session };
     } catch (e) {
-      throw new HttpException('PHONE_NUMBER_INVALID', HttpStatus.BAD_REQUEST);
+      throw new HttpException(e.messages, HttpStatus.BAD_REQUEST);
     }
   }
   async signInWithCode(
@@ -33,6 +39,7 @@ export class AuthService {
     phoneCode: string,
     session: string,
   ) {
+    const oldSession = session;
     const client = telegramClient(session);
     await client.connect();
     try {
@@ -43,6 +50,14 @@ export class AuthService {
           phoneCode: phoneCode,
         }),
       );
+      await this.prisma.user.update({
+        where: {
+          phoneNumber: phoneNumber,
+        },
+        data: {
+          session: oldSession,
+        },
+      });
       if (client.isUserAuthorized()) {
         const session = client.session.save();
         await client.disconnect();
@@ -66,10 +81,10 @@ export class AuthService {
       return false;
     }
   }
-  async signInWithName(username: string, password: string) {
-    const user = await this.prisma.user.findUnique({
+  async signInWithName(name: string, password: string) {
+    const user = await this.prisma.user.findFirst({
       where: {
-        username: username,
+        name: name,
         password: password,
       },
     });

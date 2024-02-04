@@ -19,6 +19,14 @@ export class AuthController {
     schema: {
       type: 'object',
       properties: {
+        name: {
+          type: 'string',
+          example: 'John',
+        },
+        password: {
+          type: 'string',
+          example: '123456',
+        },
         phoneNumber: {
           type: 'string',
           example: '+9996624545',
@@ -47,8 +55,14 @@ export class AuthController {
     description: 'PHONE_NUMBER_INVALID',
   })
   @Post('sendCode')
-  async sendCode(@Body() phoneNumber: { phoneNumber: string }) {
-    return await this.authService.sendCode(phoneNumber.phoneNumber);
+  async sendCode(
+    @Body() data: { name: string; password: string; phoneNumber: string },
+  ) {
+    return await this.authService.sendCode(
+      data.name,
+      data.password,
+      data.phoneNumber,
+    );
   }
 
   @ApiCreatedResponse({
@@ -114,11 +128,11 @@ export class AuthController {
   }
 
   @ApiBody({
-    description: 'Send username and password',
+    description: 'Send name and password',
     schema: {
       type: 'object',
       properties: {
-        username: {
+        name: {
           type: 'string',
           example: 'John',
         },
@@ -130,11 +144,9 @@ export class AuthController {
     },
   })
   @Post('signInWithName')
-  async loginWithName(
-    @Body() password: { username: string; password: string },
-  ) {
+  async loginWithName(@Body() password: { name: string; password: string }) {
     return await this.authService.signInWithName(
-      password.username,
+      password.name,
       password.password,
     );
   }
