@@ -17,7 +17,7 @@ model Test {
 
 model User {
   id          Int      @id @default(autoincrement())
-  telegram_id Int?      
+  telegram_id String?      
   name        String?
   username    String?  @unique
   phoneNumber String?   @unique

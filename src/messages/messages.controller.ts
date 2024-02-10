@@ -2,7 +2,6 @@ import { MessagesService } from './messages.service';
 import {
   Body,
   Controller,
-  Get,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -41,10 +40,6 @@ export class MessagesController {
     schema: {
       type: 'object',
       properties: {
-        limit: {
-          type: 'number',
-          example: 10,
-        },
         webhook: {
           type: 'string',
           example: process.env.TEST_WEBHOOK,
@@ -53,15 +48,8 @@ export class MessagesController {
     },
   })
   @Post('getDialogs')
-  getDialogs(
-    @Headers() headers: any,
-    @Body() body: { limit: number; webhook: string },
-  ) {
-    return this.messagesService.getDialogs(
-      headers,
-      body.limit,
-      headers.webhook,
-    );
+  getDialogs(@Headers() headers: any, @Body() body: { webhook: string }) {
+    return this.messagesService.getDialogs(headers, body.webhook);
   }
   @ApiBody({
     schema: {
@@ -88,6 +76,10 @@ export class MessagesController {
       type: 'object',
       properties: {
         id: {
+          type: 'number',
+          example: 123456789,
+        },
+        message_id: {
           type: 'number',
           example: 123456789,
         },

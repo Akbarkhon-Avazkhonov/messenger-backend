@@ -11,36 +11,22 @@ export class MessagesService {
     private prisma: PrismaService,
     private readonly httpService: HttpService,
   ) {}
-  async getDialogs(
-    headers: any,
-    limit: number = 10,
-    webhook: string = process.env.TEST_WEBHOOK,
-  ) {
+  async getDialogs(headers: any, webhook: string = process.env.TEST_WEBHOOK) {
     const client = telegramClient(headers.session);
     // Проверка авторизации
     await client.connect();
     if (client.isUserAuthorized()) {
-      const dialogs = await client.getDialogs({ limit: limit });
-      client.addEventHandler((update: Api.UpdateNewMessage) => {
-        console.log('Received new Update');
-        this.httpService.post(webhook, update).subscribe({
-          complete: () => {
-            console.log('completed');
-          },
-          error: (err) => {
-            console.log('Error: ' + err);
-          },
-        });
+      const dialogs = await client.getDialogs();
+      client.addEventHandler((update: Api.UpdateShortMessage) => {
+        if (update.className === 'UpdateShortMessage') {
+          this.httpService.post(webhook, update).subscribe({
+            error: (err) => {
+              console.log('Error: ' + err);
+            },
+          });
+        }
       });
 
-      // const result = dialogs.map((dialog) => ({
-      //   id: dialog.id,
-      //   title: dialog.title,
-      //   unreadCount: dialog.unreadCount,
-      //   message: dialog.message,
-      //   date: dialog.date,
-      //   // Добавьте здесь другие свойства, которые вам нужны
-      // }));
       const result = dialogs.map((dialog) => ({
         userId: dialog.id,
         title: dialog.title,
@@ -159,6 +145,9 @@ export class MessagesService {
     await client.connect();
     // Проверка авторизации
     if (client.isUserAuthorized()) {
+      //dialog need to show peer id to the library
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const dialog = await client.getDialogs();
       const messages = await client.getMessages(id.toString(), {});
       // make me simple function find message from messages where id = id
       const message = messages.find((message) => message.id === message_id);
