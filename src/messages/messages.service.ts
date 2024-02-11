@@ -80,7 +80,17 @@ export class MessagesService {
       await client.disconnect();
       await client.destroy();
       if (messages_db.length == messages.length) {
-        return messages;
+        // simple map JSON TO SELECTE DATA
+        const result = messages.map((message) => ({
+          image: message.photo,
+          message_id: message.id,
+          user_id: message.peerId,
+          out: message.out,
+          message: message.message,
+          date: message.date,
+          is_deleted: false,
+        }));
+        return result;
       } else {
         // find not exist messages and make them is_deleted = true
         const deleted_messages_unique_id = messages_db.filter(
@@ -110,10 +120,19 @@ export class MessagesService {
           },
         });
         // simple map to JSON and add is_deleted for each message
-        const result = messages_from_db.map((message) => {
+        let result = messages_from_db.map((message) => {
           const parsedMessage = JSON.parse(message.other);
           return { ...parsedMessage, is_deleted: message.is_deleted }; // You can set is_deleted to any default value
         });
+        result = result.map((message) => ({
+          image: message.photo,
+          message_id: message.id,
+          user_id: message.peerId.chatId,
+          out: message.out,
+          message: message.message,
+          date: message.date,
+          is_deleted: message.is_deleted,
+        }));
         return result;
       }
     } else {
