@@ -25,7 +25,6 @@ model User {
   password    String
   session     String?
   role_id     Int     @default(2)
-  operator_id Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -42,9 +41,9 @@ model Operator_id {
 
 model Message {
   id         Int      @id @default(autoincrement())
-  user_id    BigInt
-  message_id BigInt
-  unique_id  BigInt
+  operator_id    BigInt
+  message_id Int
+  client_id  Int
   is_deleted Boolean  @default(false)
   other   String
 }

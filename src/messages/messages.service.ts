@@ -5,6 +5,7 @@ import { Api } from 'telegram';
 import { PrismaService } from 'src/prisma.service';
 import { HttpService } from '@nestjs/axios';
 import * as fs from 'fs';
+import { generateRandomBytes, readBigIntFromBuffer } from 'telegram/Helpers';
 @Injectable()
 export class MessagesService {
   constructor(
@@ -69,6 +70,42 @@ export class MessagesService {
       client.disconnect();
       return result;
     } catch (error) {
+      client.disconnect();
+      throw new HttpException(error.errorMessage, error.code || 500);
+    }
+  }
+  async sendFirstMessage(
+    headers: any,
+    phone: string,
+    firstName: string,
+    message: string,
+  ) {
+    const client = await telegramClient(headers.session);
+    try {
+      await client.invoke(
+        new Api.contacts.ImportContacts({
+          contacts: [
+            new Api.InputPhoneContact({
+              clientId: readBigIntFromBuffer(generateRandomBytes(8)),
+              phone: phone,
+              firstName: firstName,
+              lastName: '',
+            }),
+          ],
+        }),
+      );
+      const userPeer = await client.getEntity(phone);
+      await client.sendMessage(userPeer, {
+        message: message,
+      });
+
+      // const result = await client.sendMessage(, {
+      //   message: message,
+      // });
+      client.disconnect();
+      return true;
+    } catch (error) {
+      console.log(error);
       client.disconnect();
       throw new HttpException(error.errorMessage, error.code || 500);
     }

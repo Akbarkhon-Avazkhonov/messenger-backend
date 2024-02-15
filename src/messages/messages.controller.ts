@@ -85,6 +85,34 @@ export class MessagesController {
     schema: {
       type: 'object',
       properties: {
+        phone: {
+          type: 'string',
+          example: '+123456789',
+        },
+        firstName: {
+          type: 'string',
+          example: 'John',
+        },
+        message: {
+          type: 'string',
+          example: 'Hello',
+        },
+      },
+    },
+  })
+  @Post('sendFirstMessage')
+  sendFirstMessage(@Headers() headers: any, @Body() body: any) {
+    return this.messagesService.sendFirstMessage(
+      headers,
+      body.phone,
+      body.firstName,
+      body.message,
+    );
+  }
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
         id: {
           type: 'number',
           example: 123456789,
