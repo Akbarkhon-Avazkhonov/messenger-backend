@@ -1,15 +1,13 @@
-import { Injectable, StreamableFile } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { Api, TelegramClient } from 'telegram';
-import { StringSession } from 'telegram/sessions';
+import { Api } from 'telegram';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import fs from 'fs';
+import { telegramClient } from 'src/telegramClient';
 @Injectable()
 export class UserService {
   constructor(private prisma: PrismaService) {}
   async getMe(headers: any) {
-    // if headers.session length is less than 10 )
+    // if headers.session length is less than 10 is admin
     if (headers.session.length < 10) {
       return await this.prisma.user.findFirst({
         where: {
@@ -17,95 +15,45 @@ export class UserService {
         },
       });
     }
-    const client = new TelegramClient(
-      new StringSession(headers.session),
-      +process.env.API_ID,
-      process.env.API_HASH,
-      {},
-    );
-    // Проверка авторизации
-    await client.connect();
+    const client = await telegramClient(headers.session);
     if (client.isUserAuthorized()) {
       const me = await client.getMe();
       await client.disconnect();
-      await client.destroy();
       return me;
     } else {
       await client.disconnect();
-      await client.destroy();
-      return false;
+      throw new HttpException('Unauthorized', 401);
     }
   }
   async updateProfile(headers: any, firstName: string) {
-    const client = new TelegramClient(
-      new StringSession(headers.session),
-      +process.env.API_ID,
-      process.env.API_HASH,
-      {},
-    );
-    // Проверка авторизации
-    await client.connect();
-    if (client.isUserAuthorized()) {
+    const client = await telegramClient(headers.session);
+    try {
       const me = await client.invoke(
         new Api.account.UpdateProfile({
           firstName: firstName,
         }),
       );
       await client.disconnect();
-      await client.destroy();
-
       return me;
-    } else {
+    } catch (error) {
       await client.disconnect();
-      await client.destroy();
-      return false;
+      throw new HttpException(error.errorMessage, error.code || 500);
     }
   }
-  async getUserPhoto(headers: any, id: number) {
-    const client = new TelegramClient(
-      new StringSession(headers.session),
-      +process.env.API_ID,
-      process.env.API_HASH,
-      {},
-    );
-    // Проверка авторизации
-    await client.connect();
-    if (client.isUserAuthorized()) {
+  async getUserPhoto(headers: any, id: number, res: any) {
+    const client = await telegramClient(headers.session);
+    try {
       const user = await client.downloadProfilePhoto(id);
-      // image is a buffer containing the profile photo
-      // save image from user
-      // await fs.writeFile('picture.jpg', user);
       const image = Buffer.from(user);
-      const result = new StreamableFile(image, 'image.jpg');
       await client.disconnect();
-      await client.destroy();
-      return result;
-    } else {
+      res.set({ 'Content-Type': 'image/jpeg' });
+      return res.send(image);
+    } catch (error) {
       await client.disconnect();
-      await client.destroy();
-      return false;
+      throw new HttpException(error.errorMessage, error.code || 500);
     }
   }
-  async updateProfilePhoto(headers: any) {
-    const client = new TelegramClient(
-      new StringSession(headers.session),
-      +process.env.API_ID,
-      process.env.API_HASH,
-      {},
-    );
-    // Проверка авторизации
-    await client.connect();
-    if (client.isUserAuthorized()) {
-      await client.disconnect();
-      await client.destroy();
-      return false;
-    } else {
-      await client.disconnect();
-      await client.destroy();
-      return false;
-    }
-  }
-  // make here check for role = 1
+
   async getAllOperators(headers: any) {
     const admin = await this.prisma.user.findFirst({
       where: {
@@ -121,3 +69,43 @@ export class UserService {
     }
   }
 }
+
+/*
+  async updateProfilePhoto(headers: any) {
+    const client = await telegramClient(headers.session);
+    // Проверка авторизации
+    if (client.isUserAuthorized()) {
+      await client.disconnect();
+      return false;
+    } else {
+      await client.disconnect();
+      return false;
+    }
+  }
+
+ async uploadProfilePhoto(headers: any, file: any) {
+    const client = await telegramClient(headers.session);
+ 
+    // Save file locally
+    const localFilePath = file.originalname;
+    fs.writeFileSync(localFilePath, file.buffer);
+
+    try {
+      const filesrc = file.originalname;
+      const result = await client.uploadFile({
+        file: new CustomFile(filesrc, 100000, filesrc),
+        workers: 1,
+      });
+      await client.invoke(
+        new Api.photos.UploadProfilePhoto({
+          file: result,
+        }),
+      );
+      await client.disconnect();
+      return result;
+    } catch (error) {
+      await client.disconnect();
+      throw new HttpException(error.errorMessage, error.code || 500);
+    }
+  }
+ */

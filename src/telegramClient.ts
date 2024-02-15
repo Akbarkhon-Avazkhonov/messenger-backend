@@ -1,11 +1,11 @@
-import { Api, TelegramClient } from 'telegram';
+import { TelegramClient } from 'telegram';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { LogLevel } from 'telegram/extensions/Logger';
 import { StringSession } from 'telegram/sessions';
 const TEST_SERVERS = process.env.TEST_SERVERS == 'true';
 
-export function telegramClient(
-  session = '',
+export async function telegramClient(
+  session,
   apiId = process.env.API_ID,
   apiHash = process.env.API_HASH,
 ) {
@@ -20,8 +20,9 @@ export function telegramClient(
       testServers: TEST_SERVERS,
     },
   );
-
-  client.connect() 
+  if (client.disconnected) {
+    await client.connect();
+  }
   if (TEST_SERVERS) {
     client.session.setDC(
       +process.env.TEST_DC_ID,

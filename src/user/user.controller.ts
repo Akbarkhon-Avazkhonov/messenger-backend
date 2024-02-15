@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Res } from '@nestjs/common';
 import { UserService } from './user.service';
 import { Headers } from '@nestjs/common';
 import { ApiBody, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 @ApiTags('User')
 @ApiSecurity('session')
 @Controller('user')
@@ -41,21 +42,46 @@ export class UserController {
   })
   @Post('getUserPhoto')
   // get photo
-  getUserPhoto(@Headers() headers: any, @Body('id') id: number) {
-    return this.userService.getUserPhoto(headers, id);
+  getUserPhoto(
+    @Headers() headers: any,
+    @Body('id') id: number,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.userService.getUserPhoto(headers, id, res);
   }
 
   @Get('getAllOperators')
   getAllOperators(@Headers() headers: any) {
     return this.userService.getAllOperators(headers);
   }
+}
+
+/* 
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
 
   @Post('updateProfilePhoto')
   updateProfilePhoto(@Headers() headers: any) {
     return this.userService.updateProfilePhoto(headers);
   }
-}
 
-// {
-//   "session": "1AgAOMTQ5LjE1NC4xNjcuNTABuwL0e3LH1k72lWpBr4Iczw4oR+k1yTY00fJp9ToKe5rBxJI3/o7EGL1JL7ns7dgyYHd4To/0y4Xik7I2EYerKvVlrP4MPv7JmrjEUV4NE8Bt8cM9H1F71b2XDAVjTBzmpBel2bdn2JqzgpPNuAyYngVo7jOWm/mpCsEMRRMPjwFDFy5TnIoslJNVrylGlKdNITYkBzWSQQTCbcCSP7mrHMP2pIPYgyrV+0hN3w/jEporYdBWlbzf4sqKF5DstaD8awsXGZcfKuA5CJambl8rDnCS8pa5OCWvsoV9ZXKG6cT1bWinRPIVbamTR+Lt1Hq3/1MebVXUQ+gRjRNcYTAOKWM="
-// }
+@ApiConsumes('multipart/form-data')
+  @Post('uploadProfilePhoto')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadFile(
+    @Headers() headers: any,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    // return this.messagesService.uploadProfilePhoto(headers, file);
+    return true;
+  }
+*/

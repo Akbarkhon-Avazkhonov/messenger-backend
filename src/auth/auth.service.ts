@@ -27,8 +27,7 @@ export class AuthService {
   }
 
   async sendCode(name: string, password: string, phoneNumber: string) {
-    const client = telegramClient();
-    await client.connect();
+    const client = await telegramClient('');
     if (
       await this.prisma.user.findFirst({ where: { phoneNumber: phoneNumber } })
     ) {
@@ -66,8 +65,7 @@ export class AuthService {
     session: string,
   ) {
     const oldSession = session;
-    const client = telegramClient(session);
-    await client.connect();
+    const client = await telegramClient(session);
     try {
       await client.invoke(
         new Api.auth.SignIn({
@@ -96,8 +94,7 @@ export class AuthService {
     }
   }
   async checkUsername(headers: any, username: string) {
-    const client = telegramClient(headers.session);
-    await client.connect();
+    const client = await telegramClient(headers.session);
     try {
       const result = await client.invoke(
         new Api.account.CheckUsername({ username }),

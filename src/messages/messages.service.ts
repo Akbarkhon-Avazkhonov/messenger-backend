@@ -1,10 +1,10 @@
-import { Injectable, StreamableFile } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
-import { Api } from 'telegram';
-import { CustomFile } from 'telegram/client/uploads';
-import * as fs from 'fs';
+import { Injectable } from '@nestjs/common';
 import { telegramClient } from 'src/telegramClient';
+import { HttpException } from '@nestjs/common';
+import { Api } from 'telegram';
+import { PrismaService } from 'src/prisma.service';
 import { HttpService } from '@nestjs/axios';
+import * as fs from 'fs';
 @Injectable()
 export class MessagesService {
   constructor(
@@ -12,10 +12,8 @@ export class MessagesService {
     private readonly httpService: HttpService,
   ) {}
   async getDialogs(headers: any, webhook: string = process.env.TEST_WEBHOOK) {
-    const client = telegramClient(headers.session);
-    // Проверка авторизации
-    await client.connect();
-    if (client.isUserAuthorized()) {
+    const client = await telegramClient(headers.session);
+    try {
       const dialogs = await client.getDialogs();
       client.addEventHandler((update: Api.UpdateShortMessage) => {
         if (update.className === 'UpdateShortMessage') {
@@ -26,7 +24,6 @@ export class MessagesService {
           });
         }
       });
-
       const result = dialogs.map((dialog) => ({
         userId: dialog.id,
         title: dialog.title,
@@ -34,183 +31,66 @@ export class MessagesService {
         message: dialog.message.message,
         date: dialog.date,
       }));
-
       return result;
-    } else {
-      await client.disconnect();
-      await client.destroy();
-      return false;
+    } catch (error) {
+      throw new HttpException(error, 500);
     }
   }
-  async getMessages(headers: any, id: number) {
-    const client = telegramClient(headers.session);
-    // Проверка авторизации
-    await client.connect();
-    if (client.isUserAuthorized()) {
+  async getMessages(headers: any, id: number, maxId: number = 0) {
+    const client = await telegramClient(headers.session);
+    try {
       await client.getDialogs({ limit: 100 });
-
-      const messages = await client.getMessages(id.toString(), {});
-      // save to prisma from messages until not exist
-      let i = 0;
-      while (true) {
-        const message = await this.prisma.message.findFirst({
-          where: {
-            unique_id: +(id.toString() + messages[i].id.toString()),
-          },
-        });
-        if (message) {
-          break;
-        }
-        await this.prisma.message.create({
-          data: {
-            unique_id: +(id.toString() + messages[i].id.toString()),
-            user_id: +id,
-            message_id: messages[i].id,
-            other: JSON.stringify(messages[i]),
-          },
-        });
-        i++;
-      }
-
-      const messages_db = await this.prisma.message.findMany({
-        where: {
-          user_id: +id,
-        },
+      const messages = await client.getMessages(id.toString(), {
+        limit: 20,
+        maxId: maxId,
       });
-      await client.disconnect();
-      await client.destroy();
-      if (messages_db.length == messages.length) {
-        // simple map JSON TO SELECTE DATA
-        const result = messages.map((message) => ({
-          image: message.photo,
-          message_id: message.id,
-          user_id: message.peerId,
-          out: message.out,
-          message: message.message,
-          date: message.date,
-          is_deleted: false,
-        }));
-        return result;
-      } else {
-        // find not exist messages and make them is_deleted = true
-        const deleted_messages_unique_id = messages_db.filter(
-          (message_db) =>
-            !messages.find(
-              (message) =>
-                message_db.unique_id.toString() ==
-                id.toString() + message.id.toString(),
-            ),
-        );
-        await this.prisma.message.updateMany({
-          where: {
-            unique_id: {
-              in: deleted_messages_unique_id.map(
-                (message) => message.unique_id,
-              ),
-            },
-          },
-          data: {
-            is_deleted: true,
-          },
-        });
-
-        const messages_from_db = await this.prisma.message.findMany({
-          where: {
-            user_id: +id,
-          },
-        });
-        // simple map to JSON and add is_deleted for each message
-        let result = messages_from_db.map((message) => {
-          const parsedMessage = JSON.parse(message.other);
-          return { ...parsedMessage, is_deleted: message.is_deleted }; // You can set is_deleted to any default value
-        });
-        result = result.map((message) => ({
-          image: message.photo,
-          message_id: message.id,
-          user_id: message.peerId.chatId,
-          out: message.out,
-          message: message.message,
-          date: message.date,
-          is_deleted: message.is_deleted,
-        }));
-        return result;
-      }
-    } else {
-      await client.disconnect();
-      await client.destroy();
-      return false;
+      const result = messages.map((message) => ({
+        id: message.id,
+        out: message.out,
+        fromId: message.fromId,
+        toId: message.toId,
+        message: message.message,
+        date: message.date,
+      }));
+      client.disconnect();
+      return result;
+    } catch (error) {
+      throw new HttpException(error.errorMessage, error.code || 500);
     }
   }
   async sendMessage(headers: any, id: number, message: string) {
-    const client = telegramClient(headers.session);
-    // Проверка авторизации
-    await client.connect();
-    if (client.isUserAuthorized()) {
-      await client.getPeerId('@akbarkhonavazkhonov');
-      const messages = await client.sendMessage(id.toString(), {
+    const client = await telegramClient(headers.session);
+    try {
+      // make here code that will get entity from bd using id
+      await client.getDialogs({ limit: 100 });
+      const result = await client.sendMessage(id.toString(), {
         message: message,
       });
-      await client.disconnect();
-      await client.destroy();
-      return messages;
-    } else {
-      await client.disconnect();
-      await client.destroy();
-      return false;
+      client.disconnect();
+      return result;
+    } catch (error) {
+      client.disconnect();
+      throw new HttpException(error.errorMessage, error.code || 500);
     }
   }
-  async getMedia(headers: any, id: number, message_id: number) {
-    const client = telegramClient(headers.session);
-    await client.connect();
-    // Проверка авторизации
-    if (client.isUserAuthorized()) {
+  async getMedia(headers: any, id: number, message_id: number, res: any) {
+    const client = await telegramClient(headers.session);
+    try {
       //dialog need to show peer id to the library
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const dialog = await client.getDialogs();
+      await client.getDialogs();
       const messages = await client.getMessages(id.toString(), {});
       // make me simple function find message from messages where id = id
       const message = messages.find((message) => message.id === message_id);
       const file = await client.downloadMedia(message);
       await client.disconnect();
-      await client.destroy();
-      console.log(file);
+      // save file in local
+      fs.writeFileSync('audio.ogg', file);
       const result = Buffer.from(file);
-      return new StreamableFile(result, 'audio.ogg');
-    } else {
+      res.set({ 'Content-Type': 'audio/ogg' });
+      return res.send(result);
+    } catch (error) {
       await client.disconnect();
-      await client.destroy();
-      return false;
-    }
-  }
-  async uploadProfilePhoto(headers: any, file: any) {
-    const client = telegramClient(headers.session);
-    await client.connect();
-    // Проверка авторизации
-    // save file to local storage ts
-
-    // Save file locally
-    const localFilePath = file.originalname;
-    fs.writeFileSync(localFilePath, file.buffer);
-
-    if (client.isUserAuthorized()) {
-      const filesrc = file.originalname;
-      const result = await client.uploadFile({
-        file: new CustomFile(filesrc, 100000, filesrc),
-        workers: 1,
-      });
-      await client.invoke(
-        new Api.photos.UploadProfilePhoto({
-          file: result,
-        }),
-      );
-      console.log(result);
-      await client.disconnect();
-      await client.destroy();
-      return result;
-    } else {
-      await client.disconnect();
-      await client.destroy();
-      return false;
+      throw new HttpException(error.errorMessage, error.code || 500);
     }
   }
 }
