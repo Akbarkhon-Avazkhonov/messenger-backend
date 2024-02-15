@@ -53,7 +53,6 @@ export class UserService {
       throw new HttpException(error.errorMessage, error.code || 500);
     }
   }
-
   async getAllOperators(headers: any) {
     const admin = await this.prisma.user.findFirst({
       where: {

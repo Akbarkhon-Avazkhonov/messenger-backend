@@ -62,7 +62,7 @@ export class MessagesService {
     const client = await telegramClient(headers.session);
     try {
       // make here code that will get entity from bd using id
-      await client.getDialogs({ limit: 100 });
+      await client.getDialogs();
       const result = await client.sendMessage(id.toString(), {
         message: message,
       });
